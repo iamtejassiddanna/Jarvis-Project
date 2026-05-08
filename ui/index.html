@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. Core Interface</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="hud-container">
+        <!-- Background Grid & Glow -->
+        <div class="grid-overlay"></div>
+        <div class="ambient-glow"></div>
+
+        <!-- Top Left Status -->
+        <div class="hud-panel top-left">
+            <div class="sys-title">SYSTEM.STATUS</div>
+            <div class="sys-value">ONLINE</div>
+            <div class="sys-title">AI.CORE</div>
+            <div class="sys-value">GEMINI FLASH LITE LATTEST</div>
+        </div>
+
+        <!-- Top Right Diagnostics -->
+        <div class="hud-panel top-right">
+            <div class="sys-title">JARVIS.STATUS</div>
+            <div class="sys-value" id="uplink-status">ONLINE</div>
+            <div class="sys-title">DATETIME</div>
+            <div class="sys-value" id="datetime-display">00:00:00</div>
+        </div>
+
+        <!-- Center Main Orb & Audio Waveform -->
+        <div class="center-core">
+            <div class="orb-ring ring-1"></div>
+            <div class="orb-ring ring-2"></div>
+            <div class="orb-ring ring-3"></div>
+            <div class="core-orb" id="jarvis-orb">
+                <div class="orb-core-inner"></div>
+            </div>
+            <div class="status-text" id="status-text">AWAITING INPUT</div>
+        </div>
+
+        <!-- Bottom Transcript Panel -->
+        <div class="hud-panel bottom-center">
+            <div class="sys-title">RUNTIME.TRANSCRIPT</div>
+            <div class="transcript-box" id="transcript-box">
+                <div class="message system">Initialization complete. All systems operational.</div>
+            </div>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="controls">
+            <div class="input-group">
+                <input type="text" id="chat-input" class="hud-input" placeholder="TYPE COMMAND OR QUERY..."
+                    autocomplete="off">
+                <button id="send-btn" class="hud-button">SEND</button>
+                <button id="mic-btn" class="hud-button alt-button">MIC</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
