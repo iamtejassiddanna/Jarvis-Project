@@ -3,7 +3,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusText = document.getElementById("status-text");
     const transcriptBox = document.getElementById("transcript-box");
     const micBtn = document.getElementById("mic-btn");
+    const stopBtn = document.getElementById("stop-btn");
+    const uploadBtn = document.getElementById("upload-btn");
+    const fileUpload = document.getElementById("file-upload");
+    const modeToggleBtn = document.getElementById("mode-toggle-btn");
+    const textControls = document.getElementById("text-controls");
+    const audioControls = document.getElementById("audio-controls");
+    const centerCore = document.querySelector(".center-core");
     const datetimeDisplay = document.getElementById("datetime-display");
+    
+    const filePreviewContainer = document.getElementById("file-preview-container");
+    const filePreviewImg = document.getElementById("file-preview-img");
+    const filePreviewName = document.getElementById("file-preview-name");
+    const filePreviewClose = document.getElementById("file-preview-close");
 
     const chatInput = document.getElementById("chat-input");
     const sendBtn = document.getElementById("send-btn");
@@ -15,6 +27,141 @@ document.addEventListener("DOMContentLoaded", () => {
     let recognition = null;
     let isJarvisSpeaking = false;
     let isListening = false; // Is mic actively looking for a command (Push to Talk)
+
+    let audioQueue = [];
+    let isPlaying = false;
+    let currentAudio = null;
+    let finishedStreaming = false;
+    let typeWriterInterval = null;
+    let currentAbortController = null;
+    
+    window.accumulatedTranscript = '';
+    window.submitTimer = null;
+    window.micTimeout = null;
+    window.selectedFile = null;
+
+    function clearPreview() {
+        window.selectedFile = null;
+        if (fileUpload) fileUpload.value = "";
+        if (filePreviewContainer) filePreviewContainer.style.display = "none";
+        if (filePreviewImg) filePreviewImg.src = "";
+    }
+
+    function stopEverything() {
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+        }
+        audioQueue = [];
+        isPlaying = false;
+        finishedStreaming = true;
+        
+        if (typeWriterInterval) {
+            clearInterval(typeWriterInterval);
+            typeWriterInterval = null;
+        }
+        
+        if (window.submitTimer) {
+            clearTimeout(window.submitTimer);
+            window.submitTimer = null;
+        }
+        if (window.micTimeout) {
+            clearTimeout(window.micTimeout);
+            window.micTimeout = null;
+        }
+        
+        window.accumulatedTranscript = '';
+        
+        stopListening();
+        
+        isJarvisSpeaking = false;
+        chatInput.disabled = false;
+        sendBtn.disabled = false;
+        statusText.innerText = "SYSTEM IDLE. CLICK MIC TO ACTIVATE.";
+        orb.classList.remove("listening");
+    }
+
+    if (stopBtn) {
+        stopBtn.addEventListener("click", stopEverything);
+    }
+
+    let currentMode = "AUDIO"; // default mode
+
+    if (modeToggleBtn) {
+        modeToggleBtn.addEventListener("click", () => {
+            if (currentMode === "AUDIO") {
+                // Switch to TEXT MODE
+                currentMode = "TEXT";
+                modeToggleBtn.innerText = "TEXT MODE";
+                modeToggleBtn.style.borderColor = "var(--core-blue)";
+                modeToggleBtn.style.color = "var(--core-blue)";
+                modeToggleBtn.style.background = "rgba(0, 210, 255, 0.1)";
+
+                textControls.style.display = "flex";
+                audioControls.style.display = "none";
+                centerCore.style.display = "none";
+
+                // Stop any listening if active
+                if (isListening) stopListening();
+
+            } else {
+                // Switch to AUDIO MODE
+                currentMode = "AUDIO";
+                modeToggleBtn.innerText = "AUDIO MODE";
+                modeToggleBtn.style.borderColor = "#00ffcc";
+                modeToggleBtn.style.color = "#00ffcc";
+                modeToggleBtn.style.background = "rgba(0, 255, 204, 0.1)";
+
+                textControls.style.display = "none";
+                audioControls.style.display = "flex";
+                centerCore.style.display = "flex";
+            }
+        });
+    }
+
+    if (uploadBtn && fileUpload) {
+        uploadBtn.addEventListener("click", () => {
+            fileUpload.click();
+        });
+
+        fileUpload.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                window.selectedFile = {
+                    name: file.name,
+                    data: ev.target.result,
+                    mime: file.type
+                };
+                statusText.innerText = `[FILE ATTACHED]: ${file.name}`;
+                
+                if (filePreviewContainer) filePreviewContainer.style.display = "flex";
+                if (filePreviewName) filePreviewName.innerText = file.name;
+                
+                if (file.type.startsWith("image/") && filePreviewImg) {
+                    filePreviewImg.src = ev.target.result;
+                    filePreviewImg.style.display = "block";
+                } else if (filePreviewImg) {
+                    filePreviewImg.src = "";
+                    filePreviewImg.style.display = "none";
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    if (filePreviewClose) {
+        filePreviewClose.addEventListener("click", () => {
+            clearPreview();
+            statusText.innerText = "SYSTEM IDLE. CLICK MIC TO ACTIVATE.";
+        });
+    }
 
     setInterval(() => {
         const now = new Date();
@@ -53,12 +200,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function submitQuery(transcript) {
-        if (!transcript.trim()) return;
+        if (!transcript.trim() && !window.selectedFile) return;
         
+        if (window.submitTimer) {
+            clearTimeout(window.submitTimer);
+            window.submitTimer = null;
+        }
+
         isJarvisSpeaking = true;
         stopListening(); // Turn off mic immediately upon processing
 
-        addMessage("Admin", transcript);
+        let displayMsg = transcript;
+        if (window.selectedFile) {
+            displayMsg = `[Attached: ${window.selectedFile.name}] ` + displayMsg;
+        }
+        addMessage("Admin", displayMsg);
+        
         statusText.innerText = "PROCESSING...";
         chatInput.value = "";
         chatInput.disabled = true;
@@ -74,21 +231,28 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        currentAbortController = new AbortController();
+
         try {
+            const payload = { text: transcript || "Please analyze this file." };
+            if (window.selectedFile) {
+                payload.file_data = window.selectedFile.data;
+                payload.file_mime = window.selectedFile.mime;
+            }
+
             const res = await fetch("http://127.0.0.1:8000/ask_stream", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: transcript })
+                body: JSON.stringify(payload),
+                signal: currentAbortController.signal
             });
             const msgObj = addMessage("jarvis", "");
             const reader = res.body.getReader();
             const decoder = new TextDecoder("utf-8");
             
-            let audioQueue = [];
-            let isPlaying = false;
-            let currentAudio = null;
-            let finishedStreaming = false;
-            let typeWriterInterval = null;
+            audioQueue = [];
+            isPlaying = false;
+            finishedStreaming = false;
 
             async function playNextAudio() {
                 if (audioQueue.length === 0) {
@@ -168,16 +332,31 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
         } catch (err) {
-            addMessage("system", "Uplink Error: " + err.message);
+            if (err.name !== 'AbortError') {
+                addMessage("system", "Uplink Error: " + err.message);
+            }
         } finally {
-            isJarvisSpeaking = false;
-            chatInput.disabled = false;
-            sendBtn.disabled = false;
-            chatInput.focus();
-            
-            // Revert back to completely idle mode once done
-            statusText.innerText = "SYSTEM IDLE. CLICK MIC TO ACTIVATE.";
-            orb.classList.remove("listening");
+            if (currentAbortController !== null) {
+                isJarvisSpeaking = false;
+                chatInput.disabled = false;
+                sendBtn.disabled = false;
+                chatInput.focus();
+                
+                // Revert back to completely idle mode once done
+                statusText.innerText = "SYSTEM IDLE. CLICK MIC TO ACTIVATE.";
+                orb.classList.remove("listening");
+                
+                // Enable mic for 3 seconds to allow user to say more ONLY in AUDIO mode
+                if (currentMode === "AUDIO") {
+                    triggerListening();
+                    if (window.micTimeout) clearTimeout(window.micTimeout);
+                    window.micTimeout = setTimeout(() => {
+                        if (isListening) {
+                            stopListening();
+                        }
+                    }, 3000);
+                }
+            }
         }
     }
 
@@ -209,6 +388,11 @@ document.addEventListener("DOMContentLoaded", () => {
         recognition.onresult = async (event) => {
             if (isJarvisSpeaking) return;
 
+            if (window.micTimeout) {
+                clearTimeout(window.micTimeout);
+                window.micTimeout = null;
+            }
+
             let interimTranscript = '';
             let finalTranscript = '';
 
@@ -225,14 +409,26 @@ document.addEventListener("DOMContentLoaded", () => {
             if (interimTranscript) {
                 statusText.innerText = `[HEARING]: ${interimTranscript}`;
                 if (interimMsgDiv) {
-                    interimMsgDiv.innerText = `[Admin] ${interimTranscript}...`;
+                    interimMsgDiv.innerText = `[Admin] ${window.accumulatedTranscript} ${interimTranscript}...`;
                     transcriptBox.scrollTop = transcriptBox.scrollHeight;
                 }
             }
 
             if (finalTranscript) {
-                // Instantly submit and turn off mic
-                await submitQuery(finalTranscript);
+                if (window.submitTimer) clearTimeout(window.submitTimer);
+                
+                window.accumulatedTranscript += finalTranscript + ' ';
+                if (interimMsgDiv) {
+                    interimMsgDiv.innerText = `[Admin] ${window.accumulatedTranscript}...`;
+                    transcriptBox.scrollTop = transcriptBox.scrollHeight;
+                }
+                
+                // Wait 1 second before submitting to allow for more speech
+                window.submitTimer = setTimeout(() => {
+                    let text = window.accumulatedTranscript.trim();
+                    window.accumulatedTranscript = '';
+                    if (text) submitQuery(text);
+                }, 1000);
             }
         };
 
@@ -247,7 +443,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         recognition.onend = () => {
             // Turn off UI properly if the mic naturally cuts out
-            if (isListening) {
+            if (isListening && !window.submitTimer) {
                 stopListening();
             }
         };

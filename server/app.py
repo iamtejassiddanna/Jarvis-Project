@@ -13,7 +13,7 @@ import edge_tts
 import base64
 
 from core.ai_brain import ask_jarvis
-from core.classifier import classify
+
 from skills.online import get_joke, get_ip, search_wikipedia, get_weather, get_news
 from skills.system import get_time, get_date
 app = FastAPI(title="JARVIS API")
@@ -22,16 +22,27 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"],
 
 class Query(BaseModel):
     text: str
+    file_data: str | None = None
+    file_mime: str | None = None
 
 def process(text: str) -> str:
-    intent, confidence = classify(text.lower())
+    q = text.lower()
+    intent = "general_chat"
+    confidence = 0.0
+    
+    if re.search(r'\bjoke\b', q): intent, confidence = "joke", 1.0
+    elif re.search(r'\bip\b', q) and ("address" in q or "my" in q): intent, confidence = "ip_address", 1.0
+    elif re.search(r'\btime\b', q) and "what" in q: intent, confidence = "time", 1.0
+    elif re.search(r'\bdate\b', q) or "day is it" in q: intent, confidence = "date", 1.0
+    
     if confidence > 0.55:
         if   intent == "joke":       return get_joke()
         elif intent == "ip_address": return f"Your IP is {get_ip()} Sir."
         elif intent == "time":       return f"The time is {get_time()} Sir."
         elif intent == "date":       return f"Today is {get_date()} Sir."
-        elif intent == "wikipedia":  return search_wikipedia(text)
-    return ask_jarvis(text)
+    
+    needs_search = bool(re.search(r'\b(news|sports|ipl|score|match|update|search|who|what|where|why|how|weather|today|yesterday|wikipedia)\b', q))
+    return ask_jarvis(text, enable_search=needs_search)
 
 # Add this after middleware
 app.mount("/ui", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "../ui"), html=True), name="ui")
@@ -66,15 +77,21 @@ from core.ai_brain import ask_jarvis_stream
 @app.post("/ask_stream")
 async def ask_stream(query: Query):
     async def generate():
-        intent, confidence = classify(query.text.lower())
+        q = query.text.lower()
+        intent = "general_chat"
+        confidence = 0.0
+        
+        if re.search(r'\bjoke\b', q): intent, confidence = "joke", 1.0
+        elif re.search(r'\bip\b', q) and ("address" in q or "my" in q): intent, confidence = "ip_address", 1.0
+        elif re.search(r'\btime\b', q) and "what" in q: intent, confidence = "time", 1.0
+        elif re.search(r'\bdate\b', q) or "day is it" in q: intent, confidence = "date", 1.0
         
         # Static responses can just be sent in one go
-        if confidence > 0.55 and intent in ["joke", "ip_address", "time", "date", "wikipedia"]:
+        if confidence > 0.55 and intent in ["joke", "ip_address", "time", "date"]:
             if intent == "joke":       reply_text = get_joke()
             elif intent == "ip_address": reply_text = f"Your IP is {get_ip()} Sir."
             elif intent == "time":       reply_text = f"The time is {get_time()} Sir."
             elif intent == "date":       reply_text = f"Today is {get_date()} Sir."
-            elif intent == "wikipedia":  reply_text = search_wikipedia(query.text)
             
             file_path = f"/tmp/jarvis_ui_resp.mp3"
             communicate = edge_tts.Communicate(reply_text, "en-GB-RyanNeural")
@@ -109,7 +126,8 @@ async def ask_stream(query: Query):
         async def llm_worker():
             sentence_buffer = ""
             try:
-                async for chunk in ask_jarvis_stream(query.text):
+                needs_search = bool(re.search(r'\b(news|sports|ipl|score|match|update|search|who|what|where|why|how|weather|today|yesterday|wikipedia)\b', q))
+                async for chunk in ask_jarvis_stream(query.text, enable_search=needs_search, file_data=query.file_data, file_mime=query.file_mime):
                     sentence_buffer += chunk
                     match = re.search(r'([.!?])\s+', sentence_buffer)
                     if match:

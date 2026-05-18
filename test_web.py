@@ -4,6 +4,6 @@ from selenium.webdriver.chrome.options import Options
 options = Options()
 options.add_argument('--headless')
 driver = webdriver.Chrome(options=options)
-driver.get("file:///Users/sushanthsiddanna/jarvis_project/ui/index.html")
+driver.get("file:///Users/sushanthsiddanna/Documents/Personal/Project/jarvis_project/ui/index.html")
 print(driver.page_source[:500])
 driver.quit()

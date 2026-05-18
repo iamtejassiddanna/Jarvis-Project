@@ -44,6 +44,13 @@
             <div class="status-text" id="status-text">AWAITING INPUT</div>
         </div>
 
+        <!-- File Preview Container -->
+        <div id="file-preview-container" class="hud-panel" style="display: none; position: absolute; bottom: 400px; left: 50%; transform: translateX(-50%); align-items: center; gap: 20px; min-width: 300px; z-index: 15; padding: 20px; border-radius: 8px;">
+            <img id="file-preview-img" src="" alt="Preview" style="max-height: 150px; max-width: 250px; border-radius: 6px; display: none; box-shadow: 0 0 10px rgba(0,210,255,0.3);">
+            <div id="file-preview-name" class="sys-value" style="font-size: 1.3rem; text-shadow: 0 0 8px var(--core-blue);"></div>
+            <button id="file-preview-close" class="hud-button alt-button" style="padding: 8px 15px; font-size: 1rem; margin-left: auto;">X</button>
+        </div>
+
         <!-- Bottom Transcript Panel -->
         <div class="hud-panel bottom-center">
             <div class="sys-title">RUNTIME.TRANSCRIPT</div>
@@ -53,12 +60,20 @@
         </div>
 
         <!-- Bottom Controls -->
-        <div class="controls">
+        <div class="controls" style="flex-direction: column; align-items: center; gap: 10px;">
             <div class="input-group">
-                <input type="text" id="chat-input" class="hud-input" placeholder="TYPE COMMAND OR QUERY..."
-                    autocomplete="off">
-                <button id="send-btn" class="hud-button">SEND</button>
-                <button id="mic-btn" class="hud-button alt-button">MIC</button>
+                <button id="mode-toggle-btn" class="hud-button" style="border-color: #00ffcc; color: #00ffcc; background: rgba(0, 255, 204, 0.1);">AUDIO MODE</button>
+                <div id="text-controls" style="display: none; align-items: center; gap: 10px;">
+                    <button id="upload-btn" class="hud-button" style="padding: 10px 15px; font-weight: bold; font-size: 1.2rem;" title="Upload File">+</button>
+                    <input type="file" id="file-upload" accept="image/*,.pdf,.txt" style="display:none">
+                    <input type="text" id="chat-input" class="hud-input" placeholder="TYPE COMMAND OR QUERY..."
+                        autocomplete="off">
+                    <button id="send-btn" class="hud-button">SEND</button>
+                </div>
+                <div id="audio-controls" style="display: flex; align-items: center; gap: 10px;">
+                    <button id="mic-btn" class="hud-button alt-button">MIC</button>
+                </div>
+                <button id="stop-btn" class="hud-button alt-button" style="background: rgba(255, 50, 50, 0.2); border-color: #ff3333; color: #ff3333;">STOP</button>
             </div>
         </div>
     </div>
