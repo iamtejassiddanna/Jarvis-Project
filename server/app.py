@@ -16,6 +16,7 @@ from core.ai_brain import ask_jarvis
 
 from skills.online import get_joke, get_ip, search_wikipedia, get_weather, get_news
 from skills.system import get_time, get_date
+from skills.device_control import execute_system_command
 app = FastAPI(title="JARVIS API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
@@ -129,12 +130,22 @@ async def ask_stream(query: Query):
                 needs_search = bool(re.search(r'\b(news|sports|ipl|score|match|update|search|who|what|where|why|how|weather|today|yesterday|wikipedia)\b', q))
                 async for chunk in ask_jarvis_stream(query.text, enable_search=needs_search, file_data=query.file_data, file_mime=query.file_mime):
                     sentence_buffer += chunk
+                    
+                    # Intercept execution commands
+                    while True:
+                        cmd_match = re.search(r'<EXECUTE:\s*(.*?)\s*>', sentence_buffer)
+                        if not cmd_match:
+                            break
+                        cmd = cmd_match.group(1)
+                        asyncio.create_task(execute_system_command(cmd))
+                        sentence_buffer = sentence_buffer[:cmd_match.start()] + sentence_buffer[cmd_match.end():]
+
                     match = re.search(r'([.!?])\s+', sentence_buffer)
                     if match:
                         end_idx = match.end()
-                        sentence = sentence_buffer[:end_idx].strip()
+                        sentence = sentence_buffer[:end_idx].lstrip()
                         sentence_buffer = sentence_buffer[end_idx:]
-                        if sentence:
+                        if sentence.strip():
                             await sentence_queue.put(sentence)
                 if sentence_buffer.strip():
                     await sentence_queue.put(sentence_buffer.strip())

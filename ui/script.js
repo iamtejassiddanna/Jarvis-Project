@@ -277,7 +277,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             transcriptBox.scrollTop = transcriptBox.scrollHeight;
                             displayedLength++;
                         } else {
-                            msgObj.textContent += " ";
                             clearInterval(typeWriterInterval);
                         }
                     }, charDelay);
@@ -286,7 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentAudio.onended = () => {
                     if(typeWriterInterval) clearInterval(typeWriterInterval);
                     if (displayedLength < item.text.length) {
-                        msgObj.textContent += item.text.substring(displayedLength) + " ";
+                        msgObj.textContent += item.text.substring(displayedLength);
                         transcriptBox.scrollTop = transcriptBox.scrollHeight;
                     }
                     isPlaying = false;
@@ -341,6 +340,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 chatInput.disabled = false;
                 sendBtn.disabled = false;
                 chatInput.focus();
+                
+                // Clear the file preview since the interaction is finished
+                clearPreview();
                 
                 // Revert back to completely idle mode once done
                 statusText.innerText = "SYSTEM IDLE. CLICK MIC TO ACTIVATE.";

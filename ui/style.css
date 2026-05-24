@@ -107,7 +107,7 @@ body {
 .transcript-box::-webkit-scrollbar { width: 4px; }
 .transcript-box::-webkit-scrollbar-thumb { background: var(--core-blue); }
 
-.message { padding: 5px 10px; border-left: 2px solid transparent; }
+.message { padding: 5px 10px; border-left: 2px solid transparent; white-space: pre-wrap; }
 .message.user { border-left-color: #aaa; color: #ccc; }
 .message.jarvis { border-left-color: var(--core-blue); color: #fff; text-shadow: 0 0 3px var(--core-blue); }
 .message.system { border-left-color: #ffaa00; color: #ffaa00; font-size: 0.9rem; }
