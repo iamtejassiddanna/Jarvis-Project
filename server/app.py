@@ -112,8 +112,9 @@ async def ask_stream(query: Query):
                 if sentence is None:
                     break
                 try:
+                    tts_sentence = re.sub(r'[*_#`]', '', sentence)
                     file_path = f"/tmp/jarvis_ui_resp_chunk.mp3"
-                    communicate = edge_tts.Communicate(sentence, "en-GB-RyanNeural")
+                    communicate = edge_tts.Communicate(tts_sentence, "en-GB-RyanNeural")
                     await communicate.save(file_path)
                     with open(file_path, "rb") as f:
                         audio_b64 = base64.b64encode(f.read()).decode("utf-8")

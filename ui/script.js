@@ -267,19 +267,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 let displayedLength = 0;
                 currentAudio.onloadedmetadata = () => {
-                    const duration = currentAudio.duration * 1000;
-                    // Slightly faster than audio to ensure text finishes right before audio ends
-                    const charDelay = (duration * 0.85) / item.text.length; 
-                    
                     typeWriterInterval = setInterval(() => {
-                        if (displayedLength < item.text.length) {
-                            msgObj.textContent += item.text.charAt(displayedLength);
+                        let progress = currentAudio.currentTime / currentAudio.duration;
+                        // Slightly faster than audio to ensure text finishes right before audio ends
+                        progress = Math.min(progress / 0.85, 1.0); 
+                        let expectedLength = Math.floor(item.text.length * progress);
+                        
+                        if (expectedLength > displayedLength) {
+                            msgObj.textContent += item.text.substring(displayedLength, expectedLength);
                             transcriptBox.scrollTop = transcriptBox.scrollHeight;
-                            displayedLength++;
-                        } else {
+                            displayedLength = expectedLength;
+                        }
+                        
+                        if (displayedLength >= item.text.length) {
                             clearInterval(typeWriterInterval);
                         }
-                    }, charDelay);
+                    }, 30);
                 };
                 
                 currentAudio.onended = () => {
