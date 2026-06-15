@@ -10,8 +10,6 @@ The objective of this project is to develop an intelligent virtual assistant cap
 
 ---
 
----
-
 ## Features
 
 - **Conversational AI** — Powered by Gemini 2.5 Flash with persistent conversation memory (last 20 turns)
