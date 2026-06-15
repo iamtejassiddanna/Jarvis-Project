@@ -4,6 +4,14 @@ A personal AI assistant inspired by Iron Man's JARVIS, built with Python and Goo
 
 ---
 
+##  Project Objective
+
+The objective of this project is to develop an intelligent virtual assistant capable of understanding user commands and performing automated tasks efficiently. The system aims to improve productivity by integrating voice interaction, information retrieval, and automation features into a single platform.
+
+---
+
+---
+
 ## Features
 
 - **Conversational AI** — Powered by Gemini 2.5 Flash with persistent conversation memory (last 20 turns)
@@ -154,4 +162,4 @@ Click **STOP** at any time to interrupt JARVIS mid-response.
 
 ## License
 
-This project is personal and open for learning purposes. Feel free to fork and adapt it.
+This project is licensed under the MIT License.
